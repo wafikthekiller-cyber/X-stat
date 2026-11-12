@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>X-Solver</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<style>
+:root{--bg:#f6f8fc;--card:#fff;--tx:#0b1b3a;--mut:#5b6b8a;--ac:#2563eb;--bd:#dbe3f0}
+[data-t=dark]{--bg:#0a1228;--card:#111c3a;--tx:#e8eefc;--mut:#98a8cc;--ac:#4f8bff;--bd:#25335c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px system-ui,sans-serif;transition:.3s}
+main{max-width:760px;margin:auto;padding:16px}header{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.logo{font-weight:800;font-size:24px}.logo b{color:var(--ac)}h1{font-size:26px;margin:20px 0 4px}p.s{color:var(--mut);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:12px 0;animation:f .3s}@keyframes f{from{opacity:0;transform:translateY(6px)}}
+input,select,button{font:inherit;color:var(--tx)}#q{width:100%;padding:14px;font-size:20px;border:2px solid var(--bd);border-radius:12px;background:var(--card);direction:ltr}
+button{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 14px;cursor:pointer}button.p{background:var(--ac);color:#fff;border-color:var(--ac)}
+.kb{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0;direction:ltr}.kb button{padding:10px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap}.chip{font-size:14px}details{border-top:1px solid var(--bd);padding:8px 0}summary{cursor:pointer;font-weight:600}
+.ar{color:var(--mut);direction:rtl;text-align:right;font-size:15px;margin:4px 0}.m{overflow-x:auto;direction:ltr;padding:4px 0}
+.fin{font-size:20px;background:rgba(37,99,235,.1);border-radius:10px;padding:10px}.err{color:#dc2626;font-weight:600}canvas{width:100%;height:240px;border-radius:10px;background:var(--bg)}
+[dir=rtl] .row{flex-direction:row-reverse}@media print{header,.card:not(#res),.kb,#q,.row{display:none}}
+</style></head><body><main>
+<header><div class="logo">X-<b>Solver</b></div><div class="row">
+<select id="lg"><option value="fr">FR</option><option value="ar">AR</option><option value="en">EN</option></select><button id="th">◐</button></div></header>
+<h1 id="t1"></h1><p class="s" id="t2"></p>
+<div class="card"><input id="q" autocomplete="off" inputmode="text" placeholder="x^2-5x+6=0">
+<div class="kb" id="kb"></div>
+<div class="row"><button class="p" id="go"></button><button id="cl"></button></div>
+<div class="row" id="ex" style="margin-top:10px"></div></div>
+<div id="res"></div>
+<div class="card"><b id="hh"></b><div class="row" id="hist" style="margin-top:8px"></div></div>
+</main><script>
+const L={fr:{t1:"Résolvez n'importe quel problème",t2:"Solutions précises. Explications pas à pas.",go:"Résoudre",cl:"Effacer",hh:"Calculs récents",ans:"Réponse finale",ap:"Valeurs approchées",cp:"Copier",pr:"Imprimer / PDF",gr:"Graphique (membre gauche / droit)"},
+ar:{t1:"حلّ أي مسألة رياضية",t2:"حلول دقيقة. شرح خطوة بخطوة.",go:"حلّ",cl:"مسح",hh:"العمليات الأخيرة",ans:"الجواب النهائي",ap:"قيم تقريبية",cp:"نسخ",pr:"طباعة / PDF",gr:"المنحنى"},
+en:{t1:"Solve Any Mathematical Problem",t2:"Accurate solutions. Step-by-step explanations.",go:"Solve",cl:"Clear",hh:"Recent calculations",ans:"Final answer",ap:"Approximate values",cp:"Copy",pr:"Print / PDF",gr:"Graph (left / right side)"}};
+const EX=["2x+3=7","x^2-5x+6=0","1/(x-2)=3/(x^2-4)","sqrt(x+3)=x-3","abs(x-1)=2","2^x=8","ln(x)+ln(x-2)=ln(3)","(x-1)/(x+2)>=0","x+y=3;x-y=1","sin(x)=1/2"];
+const KEYS=["x","^2","^","/","sqrt(",")","(","=","<",">","<=",">=","abs(","ln(","log(","sin(","cos(","tan(","pi","e","+","-","*","⌫"];
+const $=i=>document.getElementById(i);let lang=localStorage.lg||"fr",last=null;
+const kx=(s,el)=>{try{katex.render(s,el,{throwOnError:false,displayMode:true})}catch(e){el.textContent=s}};
+function ui(){const l=L[lang];document.documentElement.dir=lang=="ar"?"rtl":"ltr";document.documentElement.lang=lang;
+for(const k of["t1","t2","go","cl","hh"])$(k).textContent=l[k];$("lg").value=lang;localStorage.lg=lang}
+function hist(){let h=JSON.parse(localStorage.h||"[]");$("hist").innerHTML="";h.forEach(e=>{const b=document.createElement("button");b.className="chip";b.textContent=e;b.onclick=()=>{$("q").value=e;solve()};$("hist").append(b)})}
+KEYS.forEach(k=>{const b=document.createElement("button");b.textContent=k;b.onclick=()=>{const q=$("q");q.focus();if(k=="⌫")q.value=q.value.slice(0,-1);else q.value+=k};$("kb").append(b)});
+EX.forEach(e=>{const b=document.createElement("button");b.className="chip";b.textContent=e;b.onclick=()=>{$("q").value=e;solve()};$("ex").append(b)});
+function plot(c,g){const d=c.getContext("2d"),W=c.width=c.clientWidth*2,H=c.height=480;d.clearRect(0,0,W,H);
+const ys=g.flat().filter(p=>p&&Math.abs(p[1])<50).map(p=>p[1]);let lo=Math.min(-5,...ys),hi=Math.max(5,...ys);lo=Math.max(lo,-30);hi=Math.min(hi,30);
+const X=x=>(x+10)/20*W,Y=y=>H-(y-lo)/(hi-lo)*H;d.strokeStyle="#8892b0";d.lineWidth=2;d.beginPath();d.moveTo(0,Y(0));d.lineTo(W,Y(0));d.moveTo(X(0),0);d.lineTo(X(0),H);d.stroke();
+g.forEach((pts,i)=>{d.strokeStyle=i?"#f59e0b":"#2563eb";d.lineWidth=3;d.beginPath();let pen=false,pv=null;pts.forEach(p=>{if(!p||(pv&&Math.abs(p[1]-pv)>(hi-lo))){pen=false;pv=p?p[1]:null;return}
+if(!pen){d.moveTo(X(p[0]),Y(p[1]));pen=true}else d.lineTo(X(p[0]),Y(p[1]));pv=p[1]});d.stroke()})}
+async function solve(){const q=$("q").value.trim();if(!q)return;const l=L[lang],R=$("res");R.innerHTML='<div class="card">…</div>';
+try{const r=await fetch("/api/solve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expr:q})});const j=await r.json();
+if(!r.ok)throw new Error(j.detail);last=j;let h=JSON.parse(localStorage.h||"[]").filter(e=>e!=q);h.unshift(q);localStorage.h=JSON.stringify(h.slice(0,8));hist();
+R.innerHTML='<div class="card" id="res2"></div>';const c=$("res2");
+j.steps.forEach((s,i)=>{const d=document.createElement("details");d.open=true;d.innerHTML=`<summary>${i+1}. ${s.fr}</summary><div class="ar">${s.ar}</div><div class="m"></div>`;if(s.latex)kx(s.latex,d.querySelector(".m"));c.append(d)});
+const f=document.createElement("div");f.className="fin";f.innerHTML=`<b>${l.ans}</b><div class="m"></div>`+(j.approx?`<div>${l.ap}: ${j.approx}</div>`:"");kx(j.solution,f.querySelector(".m"));c.append(f);
+if(j.graph){const cv=document.createElement("canvas");c.append(Object.assign(document.createElement("p"),{textContent:l.gr}),cv);plot(cv,j.graph)}
+const a=document.createElement("div");a.className="row";a.style.marginTop="10px";a.innerHTML=`<button id="cp">${l.cp}</button><button id="pr">${l.pr}</button>`;c.append(a);
+c.id="res";$("cp").onclick=()=>navigator.clipboard.writeText(q+"\n"+j.steps.map(s=>s.fr+": "+(s.latex||"")).join("\n")+"\n"+j.solution);$("pr").onclick=()=>print()
+}catch(e){R.innerHTML=`<div class="card err">${e.message}</div>`}}
+$("go").onclick=solve;$("cl").onclick=()=>{$("q").value="";$("res").innerHTML=""};$("q").onkeydown=e=>{if(e.key=="Enter")solve()};
+$("lg").onchange=e=>{lang=e.target.value;ui()};$("th").onclick=()=>{const t=document.body.parentElement.dataset.t=="dark"?"light":"dark";document.documentElement.dataset.t=t;localStorage.t=t};
+document.documentElement.dataset.t=localStorage.t||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");ui();hist();
+</script></body></html>
